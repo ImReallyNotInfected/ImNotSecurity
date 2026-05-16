@@ -1,0 +1,183 @@
+package org.imnotasecurity.internal.Database;
+
+import com.mongodb.ConnectionString;
+import com.mongodb.MongoClientSettings;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.lang.NonNull;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.minestom.server.MinecraftServer;
+import net.minestom.server.dialog.DialogAction;
+import net.minestom.server.entity.Player;
+import net.minestom.server.entity.PlayerSkin;
+import net.minestom.server.event.GlobalEventHandler;
+import net.minestom.server.event.player.*;
+import org.bson.codecs.configuration.CodecRegistries;
+import org.bson.codecs.pojo.PojoCodecProvider;
+import org.imnotasecurity.api.Database.ImNotDataProfile;
+import org.imnotasecurity.api.Database.ImNotPlayerType;
+import org.imnotasecurity.api.ImNotSecurity;
+import org.imnotasecurity.api.ImNotServerState;
+import org.imnotasecurity.api.Permission.Permission;
+import org.imnotasecurity.api.Properties.AbstractProperty;
+import org.imnotasecurity.api.Properties.MongoProperty;
+import org.imnotasecurity.internal.Auth.AuthMaster;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.*;
+
+import static com.mongodb.client.model.Filters.eq;
+
+public class DatabaseMaster {
+    //for unique property
+    public static MongoCollection<DataProfile> mongoCollection;
+    //end
+    private static DataProfile createNewDataBase(String playerKey, ImNotPlayerType playerType) {
+        var prof = new DataProfile();
+        prof.setPlayerKey(playerKey);
+        prof.setPlayerType(playerType);
+        prof.setEmail("");
+        prof.setPassword("");
+        prof.setPermission(Permission.MEMBER);
+        Instant now = Instant.now();
+        prof.setBanDate(now);
+        prof.setBanDurationSeconds(0);
+        prof.setMuteDate(now);
+        prof.setMuteDurationSeconds(0);
+        prof.setBanReason("");
+
+        return prof;
+    }
+
+    private static Map<String, Long> hangList = new ConcurrentHashMap<>();
+    private final static float saveTimeLimit = 10;
+
+    @NonNull private static DataProfile getRawDataBase(Player player) {
+        var property = ImNotSecurity.getProperty();
+        //check if cracked or not
+        var a = ImNotDataProfile.getOnlineStatus(player);
+        ImNotPlayerType playerType = a.type();
+        String key = a.key();
+
+        if (property instanceof MongoProperty) {
+            DataProfile profile = mongoCollection.find(eq("playerKey",key)).first();
+            if (profile != null) {
+                return profile;
+            } else {
+                DataProfile newProfile = createNewDataBase(key,playerType);
+                mongoCollection.insertOne(newProfile);
+                return newProfile;
+            }
+        } else {
+            return createNewDataBase(key, playerType);
+        }
+    }
+
+    public static void loadProfile(Player player, DataProfile profile) {
+//        var dataProfile = getRawDataBase(player);
+        ImNotDataProfile.addPlayer(player, profile);
+    }
+
+    public static void saveProfile(Player player) {
+        DataProfile profile = ImNotDataProfile.getDataProfileFromPlayer(player);
+        if (profile!=null) {
+            String key = profile.getPlayerKey();
+            hangList.put(key, System.currentTimeMillis());
+//            hangList.putIfAbsent(key, System.currentTimeMillis());
+            ImNotDataProfile.removeDataProfileFromPlayer(player);
+            mongoCollection.findOneAndReplace(eq("playerKey",profile.getPlayerKey()), profile);
+            //done
+            System.out.println("Done Saving!");
+            hangList.remove(key);
+        }
+    }
+
+    public static void init() {
+        //  HANDLES DATABSE HEREEEEEEEEEEEEEEEEEEE
+        AbstractProperty property = ImNotSecurity.getProperty();
+        if (property instanceof MongoProperty mongoProperty) {
+            MongoClientSettings settings = MongoClientSettings.builder().applyConnectionString(new ConnectionString(mongoProperty.getKey()))
+                    .codecRegistry(
+                            CodecRegistries.fromRegistries(MongoClientSettings.getDefaultCodecRegistry(),CodecRegistries.fromProviders(PojoCodecProvider.builder().automatic(true).build()))
+                    ).build();
+            try {
+                var client = MongoClients.create(settings);
+                MongoDatabase player = client.getDatabase("security");
+                mongoCollection = player.getCollection("data", DataProfile.class);
+            } catch (Exception e) {
+                System.err.println("FATAL ERROR "+ e.getMessage());
+                System.exit(1);
+            }
+        }
+
+        GlobalEventHandler eventHandler = MinecraftServer.getGlobalEventHandler();
+
+        //player joining
+        eventHandler.addListener(AsyncPlayerConfigurationEvent.class, event -> {
+            Player player = event.getPlayer();
+            var status = ImNotDataProfile.getOnlineStatus(player);
+            //now check if they are on hang list, if yes or still under limit then get the fuck our of here
+            if (hangList.containsKey(status.key()) && System.currentTimeMillis() - hangList.get(status.key()) < ((long) saveTimeLimit * 1000)) {
+                player.kick(Component.text(
+                        switch (property.getLanguage()) {
+                            case VIETNAMESE -> "Bạn vào quá nhanh! Hãy chờ một tí nữa nhé!";
+                            default -> "You joined too fast! Please wait.";
+                        }
+                ).color(NamedTextColor.RED));
+
+                return;
+            }
+            //load
+            hangList.remove(status.key());
+            DataProfile profile = getRawDataBase(player);
+            loadProfile(player,profile);
+            //now auth
+            boolean successful = AuthMaster.authPlayer(player,profile);
+            //done everything, now custom callback
+            if (!successful) {return;}
+            player.removeTag(AuthMaster.STILL_IN_LOGIN);
+
+            System.out.println("LEt IN!");
+
+            property.getLoadCallback().accept(event);
+        });
+
+        eventHandler.addListener(PlayerDisconnectEvent.class, event-> {
+            Player player = event.getPlayer();
+            //do the completeable future because this is not async!
+            ImNotSecurity.shutdownTasks.register();
+
+            CompletableFuture.runAsync(() -> {
+                try {
+                    saveProfile(player);
+                } finally {
+                    ImNotSecurity.shutdownTasks.arriveAndDeregister();
+                }
+            }).exceptionally(throwable -> {
+                throwable.printStackTrace();
+                return null;
+            });
+
+        });
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            ImNotSecurity.setServerState(ImNotServerState.SHUTTING_DOWN);
+            //kick everyone
+            System.out.println("Shutting down!!");
+            MinecraftServer.getConnectionManager().getOnlinePlayers().forEach(player -> {
+                player.kick("Server shutting down!");
+            });
+
+            ImNotSecurity.shutdownTasks.awaitAdvance(ImNotSecurity.shutdownTasks.arrive());
+
+            MinecraftServer.stopCleanly();
+        }));
+    }
+}
