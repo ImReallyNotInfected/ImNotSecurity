@@ -19,6 +19,7 @@
             <groupId>net.minestom</groupId>
             <artifactId>minestom</artifactId>
             <version>2026.05.11-1.21.11</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -38,4 +39,11 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
 </project>
