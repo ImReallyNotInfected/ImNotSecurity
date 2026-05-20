@@ -6,10 +6,10 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.entity.Player;
 import org.imnotasecurity.api.ImNotSecurity;
-import org.imnotasecurity.internal.Database.DataProfile;
+import org.imnotasecurity.internal.Database.SecDataProfile;
 
 public class ImNotPermission {
-    public static void promotePermission(Player player, DataProfile profile, Permission newPermission, CommandSender doer) {
+    public static void promotePermission(Player player, SecDataProfile profile, Permission newPermission, CommandSender doer) {
         profile.setPermission(newPermission);
         player.sendMessage(Component.text(switch (ImNotSecurity.getProperty().getLanguage()) {
             case VIETNAMESE -> "Bạn đã đc thăng chức đến "+ newPermission.toString()+"!";
@@ -17,7 +17,7 @@ public class ImNotPermission {
         }).color(NamedTextColor.GREEN).decorate(TextDecoration.BOLD,TextDecoration.ITALIC));
     }
 
-    public static void removePermission(Player player, DataProfile profile, CommandSender doer) {
+    public static void removePermission(Player player, SecDataProfile profile, CommandSender doer) {
         Permission oldPer = profile.getPermission();
         profile.setPermission(Permission.MEMBER);
         player.sendMessage(Component.text(switch (ImNotSecurity.getProperty().getLanguage()) {

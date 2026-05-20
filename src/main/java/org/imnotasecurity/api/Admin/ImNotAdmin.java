@@ -2,13 +2,16 @@ package org.imnotasecurity.api.Admin;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.minestom.server.MinecraftServer;
 import net.minestom.server.command.CommandSender;
 import net.minestom.server.entity.Player;
+import net.minestom.server.timer.TaskSchedule;
 import org.imnotasecurity.api.Database.ImNotDataProfile;
-import org.imnotasecurity.internal.Database.DataProfile;
+import org.imnotasecurity.api.ImNotSecurity;
+import org.imnotasecurity.api.ImNotServerState;
+import org.imnotasecurity.internal.Database.SecDataProfile;
 
 import java.time.Instant;
-import java.util.concurrent.CompletableFuture;
 
 public class ImNotAdmin {
     public static void kickPlayer(Player target, String reason, CommandSender doer) {
@@ -22,7 +25,7 @@ public class ImNotAdmin {
     }
 
     public static void banPlayer(Player target, String reason, long seconds, CommandSender doer) {
-        DataProfile profile = ImNotDataProfile.getDataProfileFromPlayer(target);
+        SecDataProfile profile = ImNotDataProfile.getDataProfileFromPlayer(target);
         if (profile!=null) {
             var nowData = Instant.now();
             profile.setBanDate(nowData);
@@ -35,5 +38,26 @@ public class ImNotAdmin {
 
     public static void banPlayer(Player target, long seconds, CommandSender doer) {
         banPlayer(target,"",seconds,doer);
+    }
+
+    public static void stopServerSmart(CommandSender doer) {
+        ImNotSecurity.setServerState(ImNotServerState.SHUTTING_DOWN);
+        //kick everyone
+        System.out.println("Shutting down!!");
+        MinecraftServer.getConnectionManager().getOnlinePlayers().forEach(player -> {
+            try {
+                player.kick("Server shutting down!");
+            } catch (Exception e) {
+                System.out.println("---------------------------------");
+                System.out.println(e.getMessage());
+            }
+        });
+
+        MinecraftServer.getSchedulerManager().buildTask(() -> {
+            ImNotSecurity.shutdownTasks.awaitAdvance(ImNotSecurity.shutdownTasks.arrive());
+            MinecraftServer.stopCleanly();
+            System.exit(1);
+        }).delay(TaskSchedule.tick(2)).schedule(); //wait before the disconnect event registers
+
     }
 }

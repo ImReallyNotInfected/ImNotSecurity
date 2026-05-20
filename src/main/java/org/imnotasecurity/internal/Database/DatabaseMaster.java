@@ -2,18 +2,14 @@ package org.imnotasecurity.internal.Database;
 
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
-import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.lang.NonNull;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minestom.server.MinecraftServer;
-import net.minestom.server.dialog.DialogAction;
 import net.minestom.server.entity.Player;
-import net.minestom.server.entity.PlayerSkin;
 import net.minestom.server.event.GlobalEventHandler;
 import net.minestom.server.event.player.*;
 import org.bson.codecs.configuration.CodecRegistries;
@@ -27,20 +23,18 @@ import org.imnotasecurity.api.Properties.AbstractProperty;
 import org.imnotasecurity.api.Properties.MongoProperty;
 import org.imnotasecurity.internal.Auth.AuthMaster;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.*;
 
 import static com.mongodb.client.model.Filters.eq;
 
 public class DatabaseMaster {
     //for unique property
-    public static MongoCollection<DataProfile> mongoCollection;
+    public static MongoCollection<SecDataProfile> mongoCollection;
     //end
-    private static DataProfile createNewDataBase(String playerKey, ImNotPlayerType playerType) {
-        var prof = new DataProfile();
+    private static SecDataProfile createNewDataBase(String playerKey, ImNotPlayerType playerType) {
+        var prof = new SecDataProfile();
         prof.setPlayerKey(playerKey);
         prof.setPlayerType(playerType);
         prof.setEmail("");
@@ -59,7 +53,7 @@ public class DatabaseMaster {
     private static Map<String, Long> hangList = new ConcurrentHashMap<>();
     private final static float saveTimeLimit = 10;
 
-    @NonNull private static DataProfile getRawDataBase(Player player) {
+    @NonNull private static SecDataProfile getRawDataBase(Player player) {
         var property = ImNotSecurity.getProperty();
         //check if cracked or not
         var a = ImNotDataProfile.getOnlineStatus(player);
@@ -67,11 +61,11 @@ public class DatabaseMaster {
         String key = a.key();
 
         if (property instanceof MongoProperty) {
-            DataProfile profile = mongoCollection.find(eq("playerKey",key)).first();
+            SecDataProfile profile = mongoCollection.find(eq("playerKey",key)).first();
             if (profile != null) {
                 return profile;
             } else {
-                DataProfile newProfile = createNewDataBase(key,playerType);
+                SecDataProfile newProfile = createNewDataBase(key,playerType);
                 mongoCollection.insertOne(newProfile);
                 return newProfile;
             }
@@ -80,13 +74,13 @@ public class DatabaseMaster {
         }
     }
 
-    public static void loadProfile(Player player, DataProfile profile) {
+    public static void loadProfile(Player player, SecDataProfile profile) {
 //        var dataProfile = getRawDataBase(player);
         ImNotDataProfile.addPlayer(player, profile);
     }
 
     public static void saveProfile(Player player) {
-        DataProfile profile = ImNotDataProfile.getDataProfileFromPlayer(player);
+        SecDataProfile profile = ImNotDataProfile.getDataProfileFromPlayer(player);
         if (profile!=null) {
             String key = profile.getPlayerKey();
             hangList.put(key, System.currentTimeMillis());
@@ -110,7 +104,7 @@ public class DatabaseMaster {
             try {
                 var client = MongoClients.create(settings);
                 MongoDatabase player = client.getDatabase("security");
-                mongoCollection = player.getCollection("data", DataProfile.class);
+                mongoCollection = player.getCollection("data", SecDataProfile.class);
             } catch (Exception e) {
                 System.err.println("FATAL ERROR "+ e.getMessage());
                 System.exit(1);
@@ -136,7 +130,7 @@ public class DatabaseMaster {
             }
             //load
             hangList.remove(status.key());
-            DataProfile profile = getRawDataBase(player);
+            SecDataProfile profile = getRawDataBase(player);
             loadProfile(player,profile);
             //now auth
             boolean successful = AuthMaster.authPlayer(player,profile);

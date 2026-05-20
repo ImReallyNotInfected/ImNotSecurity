@@ -5,7 +5,7 @@ import org.imnotasecurity.api.Permission.Permission;
 
 import java.time.Instant;
 
-public class DataProfile {
+public class SecDataProfile {
     private ImNotPlayerType playerType;
     public void setPlayerType(ImNotPlayerType playerType) {
         this.playerType = playerType;
@@ -86,7 +86,7 @@ public class DataProfile {
         this.muteDurationSeconds = muteDurationSeconds;
     }
 
-    public DataProfile() {
+    public SecDataProfile() {
 
     }
 }

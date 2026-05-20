@@ -1,7 +1,7 @@
 package org.imnotasecurity.api.Database;
 
 import net.minestom.server.entity.Player;
-import org.imnotasecurity.internal.Database.DataProfile;
+import org.imnotasecurity.internal.Database.SecDataProfile;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
@@ -9,19 +9,19 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ImNotDataProfile {
-    private static Map<UUID, DataProfile> dataProfiles = new ConcurrentHashMap<>();
+    private static Map<UUID, SecDataProfile> dataProfiles = new ConcurrentHashMap<>();
     
     @Deprecated
-    public static void addPlayer(Player player, DataProfile newDataProfile) {
+    public static void addPlayer(Player player, SecDataProfile newSecDataProfile) {
         UUID uuid = player.getUuid();
-        dataProfiles.putIfAbsent(uuid, newDataProfile);
+        dataProfiles.putIfAbsent(uuid, newSecDataProfile);
     }
 
-    @Nullable public static DataProfile getDataProfileFromPlayer(Player player) {
+    @Nullable public static SecDataProfile getDataProfileFromPlayer(Player player) {
         return dataProfiles.getOrDefault(player.getUuid(),null);
     }
 
-    @Nullable public static DataProfile getDataProfileFromPlayer(UUID uuid) {
+    @Nullable public static SecDataProfile getDataProfileFromPlayer(UUID uuid) {
         return dataProfiles.getOrDefault(uuid,null);
     }
 

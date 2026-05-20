@@ -10,13 +10,13 @@ import org.imnotasecurity.api.ImNotSecurity;
 import org.imnotasecurity.api.Permission.ImNotPermission;
 import org.imnotasecurity.api.Permission.Permission;
 import org.imnotasecurity.api.Properties.AbstractProperty;
-import org.imnotasecurity.internal.Database.DataProfile;
+import org.imnotasecurity.internal.Database.SecDataProfile;
 
 public class PermissionCommand extends Command {
     public static boolean checkOperationDoable(Player doer, Player target, Permission minimum) {
         AbstractProperty property = ImNotSecurity.getProperty();
-        DataProfile doerProfile = ImNotDataProfile.getDataProfileFromPlayer(doer);
-        DataProfile targetProfile = ImNotDataProfile.getDataProfileFromPlayer(target);
+        SecDataProfile doerProfile = ImNotDataProfile.getDataProfileFromPlayer(doer);
+        SecDataProfile targetProfile = ImNotDataProfile.getDataProfileFromPlayer(target);
         if (doerProfile==null || targetProfile==null) {
             return false;
         }

@@ -1,48 +1,36 @@
 package org.imnotasecurity.internal.Auth;
 
-import net.kyori.adventure.dialog.DialogLike;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
-import net.kyori.adventure.nbt.StringBinaryTag;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
-import net.kyori.examination.Examiner;
 import net.minestom.server.MinecraftServer;
-import net.minestom.server.dialog.Dialog;
-import net.minestom.server.dialog.DialogMetadata;
 import net.minestom.server.entity.Player;
 import net.minestom.server.event.GlobalEventHandler;
 import net.minestom.server.event.player.PlayerConfigCustomClickEvent;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
-import net.minestom.server.network.debug.info.DebugPathInfo;
-import net.minestom.server.network.packet.server.common.ShowDialogPacket;
-import net.minestom.server.registry.Holder;
 import net.minestom.server.tag.Tag;
-import net.minestom.server.utils.nbt.BinaryTagReader;
 import org.imnotasecurity.api.Database.ImNotDataProfile;
 import org.imnotasecurity.api.Database.ImNotPlayerType;
 import org.imnotasecurity.api.ImNotSecurity;
 import org.imnotasecurity.api.Properties.AbstractProperty;
-import org.imnotasecurity.internal.Database.DataProfile;
+import org.imnotasecurity.internal.Database.SecDataProfile;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 
 import static net.kyori.adventure.text.format.TextColor.color;
-import static org.imnotasecurity.api.ImNotLanguage.VIETNAMESE;
 
 public class AuthMaster {
     public static final Tag<Boolean> STILL_IN_LOGIN = Tag.Boolean("STILL_IN_LOGIN");
     private static final Map<UUID, Phaser> playerLoginPhasers = new ConcurrentHashMap<>();
     private static final Map<UUID, Phaser> playerEmailPhasers = new ConcurrentHashMap<>();
 
-    public static void attemptLoginPlayer(Player player, DataProfile dataProfile, String password) {
+    public static void attemptLoginPlayer(Player player, SecDataProfile secDataProfile, String password) {
         Phaser phaser = playerLoginPhasers.getOrDefault(player.getUuid(),null);
         AbstractProperty property = ImNotSecurity.getProperty();
         if (!player.hasTag(STILL_IN_LOGIN)) {
@@ -55,7 +43,7 @@ public class AuthMaster {
             return;
         }
 
-        if (dataProfile.getPassword().isEmpty()) {
+        if (secDataProfile.getPassword().isEmpty()) {
             //REGISTER TIME
             //check if password less than 20, longer than 3
             if (password.length() > 20) {
@@ -77,11 +65,11 @@ public class AuthMaster {
             }
 
             //DONE
-            dataProfile.setPassword(password);
+            secDataProfile.setPassword(password);
             phaser.arriveAndDeregister();
         } else {
             //LOGIN TIME
-            if (!password.equals(dataProfile.getPassword())) {
+            if (!password.equals(secDataProfile.getPassword())) {
                 player.kick(Component.text(
                         switch (property.getLanguage()) {
                             case VIETNAMESE -> "Sai Mật Khẩu!";
@@ -95,20 +83,20 @@ public class AuthMaster {
         }
     }
 
-    public static boolean authPlayer(Player player, DataProfile dataProfile) {
+    public static boolean authPlayer(Player player, SecDataProfile secDataProfile) {
         AbstractProperty property = ImNotSecurity.getProperty();
         //check if is banned
         Instant now = Instant.now();
-        Duration durationCheck = Duration.between(dataProfile.getBanDate(), now);
-        if (durationCheck.toSeconds() < dataProfile.getBanDurationSeconds()) {
+        Duration durationCheck = Duration.between(secDataProfile.getBanDate(), now);
+        if (durationCheck.toSeconds() < secDataProfile.getBanDurationSeconds()) {
             //banned
-            Duration duration = Duration.between(dataProfile.getBanDate().plusSeconds(dataProfile.getBanDurationSeconds()),now);
+            Duration duration = Duration.between(secDataProfile.getBanDate().plusSeconds(secDataProfile.getBanDurationSeconds()),now);
             Component banMessage = Component.text("You have been banned for the server.").color(NamedTextColor.RED);
             banMessage = banMessage.appendNewline().append(Component.empty().style(Style.empty()));
             banMessage = banMessage.append(Component.text("Ban ends in : ",NamedTextColor.WHITE).append(Component.text(-duration.toDays()+" days "+
                     -duration.toHoursPart()+" hours "+-duration.toMinutesPart()+" minutes",NamedTextColor.RED)).append(Component.text(".",NamedTextColor.RED)));
             banMessage = banMessage.appendNewline().append(Component.empty().style(Style.empty()));
-            banMessage = banMessage.append(Component.text("For the following reason : ",NamedTextColor.WHITE).append(Component.text(dataProfile.getBanReason(),NamedTextColor.RED)));
+            banMessage = banMessage.append(Component.text("For the following reason : ",NamedTextColor.WHITE).append(Component.text(secDataProfile.getBanReason(),NamedTextColor.RED)));
             banMessage = banMessage.appendNewline().append(Component.empty().style(Style.empty()));
             banMessage = banMessage.append(Component.text("If you believe you are falsely banned, you can appeal at : ", NamedTextColor.WHITE));
             banMessage = banMessage.appendNewline().append(Component.empty().style(Style.empty()));
@@ -121,12 +109,12 @@ public class AuthMaster {
 
 
 
-        if (property.getDoAuthLoginForCracked() && !dataProfile.getPlayerType().equals(ImNotPlayerType.PREMIUM)) {
+        if (property.getDoAuthLoginForCracked() && !secDataProfile.getPlayerType().equals(ImNotPlayerType.PREMIUM)) {
             //login
             player.setTag(STILL_IN_LOGIN,true);
 
             //now check if login or register
-            if (dataProfile.getPassword().equalsIgnoreCase("")) {
+            if (secDataProfile.getPassword().equalsIgnoreCase("")) {
                 //register! Has not login before
                 player.showDialog(AuthGUIs.getRegisterGUI());
 
@@ -230,7 +218,7 @@ public class AuthMaster {
         eventHandler.addListener(PlayerConfigCustomClickEvent.class, event -> {
             AbstractProperty property = ImNotSecurity.getProperty();
            Player player = event.getPlayer();
-           DataProfile profile = ImNotDataProfile.getDataProfileFromPlayer(player);
+           SecDataProfile profile = ImNotDataProfile.getDataProfileFromPlayer(player);
 
            if (profile==null || event.getPayload()==null) {
                return;
