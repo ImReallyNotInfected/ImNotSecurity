@@ -119,6 +119,8 @@ public class DatabaseMaster {
             var status = ImNotDataProfile.getOnlineStatus(player);
             //now check if they are on hang list, if yes or still under limit then get the fuck our of here
             if (hangList.containsKey(status.key()) && System.currentTimeMillis() - hangList.get(status.key()) < ((long) saveTimeLimit * 1000)) {
+                System.out.println(hangList);
+                System.out.println(status.key());
                 player.kick(Component.text(
                         switch (property.getLanguage()) {
                             case VIETNAMESE -> "Bạn vào quá nhanh! Hãy chờ một tí nữa nhé!";

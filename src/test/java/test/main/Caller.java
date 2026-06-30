@@ -15,7 +15,7 @@ import org.imnotasecurity.api.Properties.MongoProperty;
 public class Caller {
     static void main() {
         MinecraftServer server =MinecraftServer.init();
-        var property = new MongoProperty("idk");
+        var property = new MongoProperty("mongodb+srv://bhatverybruh657_db_user:bATGKOc8HVVlyGSX@battleminecraft.pq5bz3h.mongodb.net/?appName=BattleMinecraft?directConnection=true");
         property.setDoAuthLoginForCracked(true);
 
         InstanceManager instanceManager = MinecraftServer.getInstanceManager();
