@@ -93,7 +93,6 @@ public class DatabaseMaster {
     }
 
     public static void init() {
-        //  HANDLES DATABSE HEREEEEEEEEEEEEEEEEEEE
         AbstractProperty property = ImNotSecurity.getProperty();
         if (property instanceof MongoProperty mongoProperty) {
             MongoClientSettings settings = MongoClientSettings.builder().applyConnectionString(new ConnectionString(mongoProperty.getKey()))
@@ -112,62 +111,74 @@ public class DatabaseMaster {
 
         GlobalEventHandler eventHandler = MinecraftServer.getGlobalEventHandler();
 
-        //player joining
+        // Player joining
         eventHandler.addListener(AsyncPlayerConfigurationEvent.class, event -> {
             Player player = event.getPlayer();
             var status = ImNotDataProfile.getOnlineStatus(player);
-            //now check if they are on hang list, if yes or still under limit then get the fuck our of here
-            if (hangList.containsKey(status.key()) && System.currentTimeMillis() - hangList.get(status.key()) < ((long) saveTimeLimit * 1000)) {
-                System.out.println(hangList);
-                System.out.println(status.key());
+            String key = status.key();
+
+            if (hangList.containsKey(key) && System.currentTimeMillis() - hangList.get(key) < ((long) saveTimeLimit * 1000)) {
                 player.kick(Component.text(
                         switch (property.getLanguage()) {
                             case VIETNAMESE -> "Bạn vào quá nhanh! Hãy chờ một tí nữa nhé!";
                             default -> "You joined too fast! Please wait.";
                         }
                 ).color(NamedTextColor.RED));
-
                 return;
             }
-            //load
-            hangList.remove(status.key());
+
+            hangList.remove(key);
             SecDataProfile profile = getRawDataBase(player);
-            loadProfile(player,profile);
-            //now auth
-            boolean successful = AuthMaster.authPlayer(player,profile);
-            //done everything, now custom callback
-            if (!successful) {return;}
+            loadProfile(player, profile);
+
+            boolean successful = AuthMaster.authPlayer(player, profile);
+            if (!successful) { return; }
             player.removeTag(AuthMaster.STILL_IN_LOGIN);
 
             property.getLoadCallback().accept(event);
         });
 
-        eventHandler.addListener(PlayerDisconnectEvent.class, event-> {
+        eventHandler.addListener(PlayerDisconnectEvent.class, event -> {
             Player player = event.getPlayer();
-            //do the completeable future because this is not async!
-            ImNotSecurity.shutdownTasks.register();
 
-            CompletableFuture.runAsync(() -> {
+            SecDataProfile profile = ImNotDataProfile.getDataProfileFromPlayer(player);
+            if (profile == null) return;
+
+            String key = profile.getPlayerKey();
+            hangList.put(key, System.currentTimeMillis());
+            ImNotDataProfile.removeDataProfileFromPlayer(player);
+
+            boolean isShuttingDown = ImNotSecurity.getServerState() == ImNotServerState.SHUTTING_DOWN;
+
+            if (isShuttingDown) {
                 try {
-                    saveProfile(player);
+                    mongoCollection.findOneAndReplace(eq("playerKey", key), profile);
+                } catch (Exception e) {
+                    hangList.remove(key);
+                    e.printStackTrace();
                 } finally {
-                    ImNotSecurity.shutdownTasks.arriveAndDeregister();
+                    hangList.remove(key);
                 }
-            }).exceptionally(throwable -> {
-                throwable.printStackTrace();
-                return null;
-            });
-
+            } else {
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        mongoCollection.findOneAndReplace(eq("playerKey", key), profile);
+                    } catch (Exception e) {
+                        hangList.remove(key);
+                        e.printStackTrace();
+                    } finally {
+                        hangList.remove(key);
+                    }
+                });
+            }
         });
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             ImNotSecurity.setServerState(ImNotServerState.SHUTTING_DOWN);
-            //kick everyone
+
             MinecraftServer.getConnectionManager().getOnlinePlayers().forEach(player -> {
                 player.kick("Server shutting down!");
             });
-
-            ImNotSecurity.shutdownTasks.awaitAdvance(ImNotSecurity.shutdownTasks.arrive());
 
             MinecraftServer.stopCleanly();
         }));
