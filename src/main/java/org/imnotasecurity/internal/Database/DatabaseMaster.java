@@ -88,7 +88,6 @@ public class DatabaseMaster {
             ImNotDataProfile.removeDataProfileFromPlayer(player);
             mongoCollection.findOneAndReplace(eq("playerKey",profile.getPlayerKey()), profile);
             //done
-            System.out.println("Done Saving!");
             hangList.remove(key);
         }
     }
@@ -140,8 +139,6 @@ public class DatabaseMaster {
             if (!successful) {return;}
             player.removeTag(AuthMaster.STILL_IN_LOGIN);
 
-            System.out.println("LEt IN!");
-
             property.getLoadCallback().accept(event);
         });
 
@@ -166,7 +163,6 @@ public class DatabaseMaster {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             ImNotSecurity.setServerState(ImNotServerState.SHUTTING_DOWN);
             //kick everyone
-            System.out.println("Shutting down!!");
             MinecraftServer.getConnectionManager().getOnlinePlayers().forEach(player -> {
                 player.kick("Server shutting down!");
             });

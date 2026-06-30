@@ -43,7 +43,6 @@ public class ImNotAdmin {
     public static void stopServerSmart(CommandSender doer) {
         ImNotSecurity.setServerState(ImNotServerState.SHUTTING_DOWN);
         //kick everyone
-        System.out.println("Shutting down!!");
         MinecraftServer.getConnectionManager().getOnlinePlayers().forEach(player -> {
             try {
                 player.kick("Server shutting down!");
