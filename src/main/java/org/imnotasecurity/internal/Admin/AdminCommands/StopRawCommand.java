@@ -9,9 +9,9 @@ import org.imnotasecurity.api.Database.ImNotDataProfile;
 import org.imnotasecurity.api.Permission.Permission;
 import org.imnotasecurity.internal.Database.SecDataProfile;
 
-public class StopCommand extends Command {
-    public StopCommand() {
-        super("stopserversmart","terminateserversmart");
+public class StopRawCommand extends Command {
+    public StopRawCommand() {
+        super("stopserver","terminateserver");
 
 
         setDefaultExecutor((sender, context) -> {
@@ -19,8 +19,6 @@ public class StopCommand extends Command {
                 player.sendMessage("/stop");
             }
         });
-
-
 
         addSyntax((sender, context) -> {
             if (sender instanceof Player plr) {
@@ -32,7 +30,7 @@ public class StopCommand extends Command {
                 }
             }
 
-            ImNotAdmin.stopServerSmart(sender, true);
+            ImNotAdmin.stopServerSmart(sender, false);
         });
     }
 }

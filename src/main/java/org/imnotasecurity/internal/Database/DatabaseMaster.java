@@ -63,6 +63,10 @@ public class DatabaseMaster {
         if (property instanceof MongoProperty) {
             SecDataProfile profile = mongoCollection.find(eq("playerKey",key)).first();
             if (profile != null) {
+                if (player.getUuid().version() == 4) {
+                    profile.setPlayerName(player.getUsername().toLowerCase());
+                }
+
                 return profile;
             } else {
                 SecDataProfile newProfile = createNewDataBase(key,playerType);

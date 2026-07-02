@@ -22,6 +22,10 @@ public class SecDataProfile {
         this.playerKey = playerKey;
     }
 
+    private String playerName = "";
+    public String getPlayerName() {return playerName;}
+    public void setPlayerName(String playerName) {this.playerName = playerName;}
+
     private String password;
     public String getPassword() {
         return password;

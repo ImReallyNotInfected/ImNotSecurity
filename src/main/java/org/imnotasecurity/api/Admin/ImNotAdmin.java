@@ -40,20 +40,27 @@ public class ImNotAdmin {
         banPlayer(target,"",seconds,doer);
     }
 
-    public static void stopServerSmart(CommandSender doer) {
+    public static void stopServerSmart(CommandSender doer, boolean kickEveryone) {
         ImNotSecurity.setServerState(ImNotServerState.SHUTTING_DOWN);
         //kick everyone
-        MinecraftServer.getConnectionManager().getOnlinePlayers().forEach(player -> {
-            try {
-                player.kick("Server shutting down!");
-            } catch (Exception e) {
-                System.out.println("---------------------------------");
-                System.out.println(e.getMessage());
-            }
-        });
+
+        if (kickEveryone) {
+            MinecraftServer.getConnectionManager().getOnlinePlayers().forEach(player -> {
+                try {
+                    player.kick("Server shutting down!");
+                } catch (Exception e) {
+                    System.out.println("---------------------------------");
+                    System.out.println(e.getMessage());
+                }
+            });
+        }
+
 
         MinecraftServer.getSchedulerManager().buildTask(() -> {
-            ImNotSecurity.shutdownTasks.awaitAdvance(ImNotSecurity.shutdownTasks.arrive());
+            if (kickEveryone) {
+                ImNotSecurity.shutdownTasks.awaitAdvance(ImNotSecurity.shutdownTasks.arrive());
+            }
+
             MinecraftServer.stopCleanly();
             System.exit(1);
         }).delay(TaskSchedule.tick(2)).schedule(); //wait before the disconnect event registers
